@@ -20,7 +20,10 @@ public:
 
     FixedPoint(const double &num, int frac_bits = 32);
 
-
+    FixedPoint operator<<(int n) const;    // Сдвиг влево
+    FixedPoint operator>>(int n) const;    // Сдвиг вправо
+    FixedPoint operator^(const FixedPoint &other) const;  // Побитовый XOR
+    
     // Copy constructor and destructor
     FixedPoint(const FixedPoint& other);
     ~FixedPoint();
@@ -127,9 +130,6 @@ private:
     std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
     decimal_to_binary(const std::string &num_str, int frac_bits = 32) const;
 
-    FixedPoint operator<<(int n) const;    // Сдвиг влево
-    FixedPoint operator>>(int n) const;    // Сдвиг вправо
-    FixedPoint operator^(const FixedPoint &other) const;  // Побитовый XOR
     
 };
 
