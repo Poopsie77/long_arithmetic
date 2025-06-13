@@ -23,7 +23,6 @@ FixedPoint::FixedPoint(const double &num, int frac_bits) : fractional_bits(frac_
     is_negative = num < 0;
 }
 
-
 // Default copy constructor and destructor
 FixedPoint::FixedPoint(const FixedPoint& other) = default;
 FixedPoint::~FixedPoint() = default;
@@ -992,7 +991,12 @@ FixedPoint FixedPoint::operator^(const FixedPoint &other) const {
     return result;
 }
 
+
 // User-defined literal operator for creating FixedPoint objects
 FixedPoint operator""_long(long double number) {
     return FixedPoint(std::to_string(number), 64); // Replace this with actual logic if needed
+
 }
+
+
+

@@ -1,9 +1,6 @@
 #include <gtest/gtest.h>
-#include <iostream>
 
-int main() {
-    num_1=FixedPoint num("123.456");
-    num_2=FixedPoint num("123.456");
-    result =num1 + num2;
-    std::cout << result.to_string();
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
