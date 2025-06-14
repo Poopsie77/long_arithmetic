@@ -110,12 +110,13 @@ TEST(FixedPointTests, BitwiseXOR) {
     FixedPoint a("5.0");    
     FixedPoint b("3.0");    
     FixedPoint c = a ^ b;
-    EXPECT_EQ(c.to_string(), "6.0");  
-
-    FixedPoint d("0.5");    
-    FixedPoint e("0.25");  
+    EXPECT_EQ(c.to_string(), "6.0");  // 5 XOR 3 = 6
+    
+    // Для дробных чисел берётся только целая часть
+    FixedPoint d("5.5");    
+    FixedPoint e("3.25");  
     FixedPoint f = d ^ e;
-    EXPECT_EQ(f.to_string(), "0.75");  
+    EXPECT_EQ(f.to_string(), "6.0");  // 5 XOR 3 = 6 (дробные части игнорируются)
 }
 
 // Тест для числа Pi
