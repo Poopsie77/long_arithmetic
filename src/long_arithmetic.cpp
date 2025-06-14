@@ -912,34 +912,34 @@ std::pair<FixedPoint, FixedPoint> FixedPoint::divide_with_remainder(const FixedP
 
 // Побитовый XOR (игнорирует знак, работает с абсолютными значениями)
 FixedPoint FixedPoint::operator^(const FixedPoint &other) const {
-    // Конвертируем в целые числа, выполняем XOR, затем обратно
-    FixedPoint this_int = *this;
-    this_int.set_precision(0);
+    // Приводим числа к одинаковому количеству дробных битов
+    int max_frac_bits = std::max(fractional_bits, other.fractional_bits);
+    FixedPoint a = *this;
+    FixedPoint b = other;
+    a.set_precision(max_frac_bits);
+    b.set_precision(max_frac_bits);
     
-    FixedPoint other_int = other;
-    other_int.set_precision(0);
+    // Собираем все биты (целые + дробные) в один вектор
+    std::vector<uint32_t> bits_a = a.integer;
+    bits_a.insert(bits_a.end(), a.fractional.begin(), a.fractional.end());
     
-    // Получаем целочисленные значения
-    int64_t a = 0, b = 0;
-    for (size_t i = 0; i < this_int.integer.size(); ++i) {
-        a |= (static_cast<int64_t>(this_int.integer[i]) << (32 * i));
-    }
-    for (size_t i = 0; i < other_int.integer.size(); ++i) {
-        b |= (static_cast<int64_t>(other_int.integer[i]) << (32 * i));
+    std::vector<uint32_t> bits_b = b.integer;
+    bits_b.insert(bits_b.end(), b.fractional.begin(), b.fractional.end());
+    
+    // Выполняем XOR
+    size_t max_size = std::max(bits_a.size(), bits_b.size());
+    std::vector<uint32_t> result_bits(max_size, 0);
+    for (size_t i = 0; i < max_size; ++i) {
+        uint32_t val_a = (i < bits_a.size()) ? bits_a[i] : 0;
+        uint32_t val_b = (i < bits_b.size()) ? bits_b[i] : 0;
+        result_bits[i] = val_a ^ val_b;
     }
     
-    int64_t res = a ^ b;
-    
-    // Конвертируем результат обратно в FixedPoint
-    FixedPoint result("0.0");
-    result.integer.clear();
-    while (res != 0) {
-        result.integer.push_back(res & 0xFFFFFFFF);
-        res >>= 32;
-    }
-    if (result.integer.empty()) {
-        result.integer.push_back(0);
-    }
+    // Разделяем обратно на целую и дробную части
+    FixedPoint result("0.0", max_frac_bits);
+    size_t int_size = a.integer.size();
+    result.integer.assign(result_bits.begin(), result_bits.begin() + int_size);
+    result.fractional.assign(result_bits.begin() + int_size, result_bits.end());
     
     return result;
 }
