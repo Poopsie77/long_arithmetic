@@ -21,7 +21,11 @@ add_executable(calculate_pi
 )
 target_link_libraries(calculate_pi long_arithmetic)
 
-# Тесты (только если есть test/ папка)
+add_executable(demo
+    src/demo.cpp)
+target_link_libraries(demo long_arithmetic)
+
+# Тесты 
 if(EXISTS ${CMAKE_SOURCE_DIR}/test/test_long_arithmetic.cpp)
     message(STATUS "Found tests - enabling testing")
     enable_testing()
