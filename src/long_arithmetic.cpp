@@ -873,74 +873,20 @@ FixedPoint::decimal_to_binary(const std::string& num_str, int frac_bits) const {
     return std::make_pair(binary_integer, binary_fraction);
 }
 
-// Битовый сдвиг влево (на n бит)
+//сдвиг влево
 FixedPoint FixedPoint::operator<<(int n) const {
-    if (n < 0) {
-        throw std::invalid_argument("Shift amount must be non-negative");
-    }
-
     FixedPoint result = *this;
     for (int i = 0; i < n; ++i) {
-        // Обрабатываем целую часть
-        if (!result.integer.empty()) {
-            uint32_t carry = (result.integer.back() >> 31) & 1; // Старший бит целой части
-            for (size_t j = result.integer.size() - 1; j > 0; --j) {
-                result.integer[j] <<= 1;
-                result.integer[j] |= (result.integer[j - 1] >> 31) & 1;
-            }
-            result.integer[0] <<= 1;
-
-            // Переносим carry в дробную часть
-            if (!result.fractional.empty()) {
-                for (size_t j = 0; j < result.fractional.size(); ++j) {
-                    uint32_t next_carry = (result.fractional[j] >> 31) & 1;
-                    result.fractional[j] <<= 1;
-                    if (j == 0) {
-                        result.fractional[j] |= carry;
-                    } else {
-                        result.fractional[j] |= (result.fractional[j - 1] >> 31) & 1;
-                    }
-                    carry = next_carry;
-                }
-            } else if (carry) {
-                result.fractional.push_back(carry);
-            }
-        }
+        result = result * FixedPoint("2.0");
     }
     return result;
 }
 
-// Битовый сдвиг вправо (на n бит)
+//сдвиг вправо
 FixedPoint FixedPoint::operator>>(int n) const {
-    if (n < 0) {
-        throw std::invalid_argument("Shift amount must be non-negative");
-    }
-
     FixedPoint result = *this;
     for (int i = 0; i < n; ++i) {
-        // Обрабатываем дробную часть
-        if (!result.fractional.empty()) {
-            uint32_t carry = (result.fractional[0] & 1); // Младший бит дробной части
-            for (size_t j = 0; j < result.fractional.size() - 1; ++j) {
-                result.fractional[j] >>= 1;
-                result.fractional[j] |= (result.fractional[j + 1] & 1) << 31;
-            }
-            result.fractional.back() >>= 1;
-
-            // Переносим carry в целую часть
-            if (!result.integer.empty()) {
-                for (size_t j = result.integer.size() - 1; j > 0; --j) {
-                    uint32_t next_carry = (result.integer[j] & 1);
-                    result.integer[j] >>= 1;
-                    result.integer[j] |= (result.integer[j - 1] & 1) << 31;
-                    carry = next_carry;
-                }
-                result.integer[0] >>= 1;
-                result.integer[0] |= carry << 31;
-            } else if (carry) {
-                result.integer.push_back(carry << 31);
-            }
-        }
+        result = result / FixedPoint("2.0");
     }
     return result;
 }
@@ -951,43 +897,50 @@ std::pair<FixedPoint, FixedPoint> FixedPoint::divide_with_remainder(const FixedP
         throw std::runtime_error("Division by zero");
     }
 
+    // Получаем целочисленное частное
     FixedPoint quotient = *this / other;
+    quotient.set_precision(0); // Отбрасываем дробную часть
+    
+    // Вычисляем остаток
     FixedPoint remainder = *this - (quotient * other);
-
-    // Корректировка знака остатка (должен совпадать с делимым)
+    
+    // Корректируем знак остатка (должен совпадать с делимым)
     remainder.is_negative = this->is_negative;
-
+    
     return {quotient, remainder};
 }
 
 // Побитовый XOR (игнорирует знак, работает с абсолютными значениями)
 FixedPoint FixedPoint::operator^(const FixedPoint &other) const {
-    FixedPoint result("0.0", std::max(this->fractional_bits, other.fractional_bits));
-
-    // Выравниваем размеры целых частей
-    size_t max_int_size = std::max(this->integer.size(), other.integer.size());
-    for (size_t i = 0; i < max_int_size; ++i) {
-        uint32_t a = (i < this->integer.size()) ? this->integer[i] : 0;
-        uint32_t b = (i < other.integer.size()) ? other.integer[i] : 0;
-        result.integer.push_back(a ^ b);
+    // Конвертируем в целые числа, выполняем XOR, затем обратно
+    FixedPoint this_int = *this;
+    this_int.set_precision(0);
+    
+    FixedPoint other_int = other;
+    other_int.set_precision(0);
+    
+    // Получаем целочисленные значения
+    int64_t a = 0, b = 0;
+    for (size_t i = 0; i < this_int.integer.size(); ++i) {
+        a |= (static_cast<int64_t>(this_int.integer[i]) << (32 * i));
     }
-
-    // Выравниваем размеры дробных частей
-    size_t max_frac_size = std::max(this->fractional.size(), other.fractional.size());
-    for (size_t i = 0; i < max_frac_size; ++i) {
-        uint32_t a = (i < this->fractional.size()) ? this->fractional[i] : 0;
-        uint32_t b = (i < other.fractional.size()) ? other.fractional[i] : 0;
-        result.fractional.push_back(a ^ b);
+    for (size_t i = 0; i < other_int.integer.size(); ++i) {
+        b |= (static_cast<int64_t>(other_int.integer[i]) << (32 * i));
     }
-
-    // Удаляем ведущие нули
-    while (result.integer.size() > 1 && result.integer.back() == 0) {
-        result.integer.pop_back();
+    
+    int64_t res = a ^ b;
+    
+    // Конвертируем результат обратно в FixedPoint
+    FixedPoint result("0.0");
+    result.integer.clear();
+    while (res != 0) {
+        result.integer.push_back(res & 0xFFFFFFFF);
+        res >>= 32;
     }
-    while (result.fractional.size() > 1 && result.fractional.front() == 0) {
-        result.fractional.erase(result.fractional.begin());
+    if (result.integer.empty()) {
+        result.integer.push_back(0);
     }
-
+    
     return result;
 }
 
