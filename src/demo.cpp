@@ -1,6 +1,6 @@
 #include <iostream>
 #include <string>
-#include "include/long_arithmetic.hpp"
+#include "../include/long_arithmetic.hpp"
 
 void print_operations() {
     std::cout << "\nДоступные операции:\n"
