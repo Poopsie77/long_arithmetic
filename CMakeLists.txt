@@ -43,4 +43,6 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/test/test_long_arithmetic.cpp)
     add_test(NAME arithmetic_tests COMMAND tests)
 else()
     message(WARNING "Test files not found - skipping tests")
+
 endif()
+
