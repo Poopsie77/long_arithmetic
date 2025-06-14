@@ -21,6 +21,7 @@ add_executable(calculate_pi
 )
 target_link_libraries(calculate_pi long_arithmetic)
 
+#Исполняемый файл для тестирования библиотеки
 add_executable(demo
     src/demo.cpp)
 target_link_libraries(demo long_arithmetic)

@@ -1,3 +1,8 @@
+/**
+ * @file long_arithmetic.cpp
+ * @brief Реализация класса FixedPoint для арифметики фиксированной точки
+ */
+
 #include <iostream>
 #include <algorithm>
 #include <stdexcept>
@@ -6,36 +11,51 @@
 
 #include "../include/long_arithmetic.hpp"
 
-// Constructor: Converts a decimal string to binary representation with specified fractional bits
+/**
+ * @brief Конструктор из строки с указанием бит дробной части
+ * @param num_str Строковое представление числа
+ * @param frac_bits Количество бит дробной части
+ */
 FixedPoint::FixedPoint(const std::string &num_str, int frac_bits) : fractional_bits(frac_bits) {
     auto binary_result = decimal_to_binary(num_str, fractional_bits);
 
-    integer = binary_result.first;     // Store the integer part in binary
-    fractional = binary_result.second; // Store the fractional part in binary
+    integer = binary_result.first;     // Сохранение целой части в двоичном формате
+    fractional = binary_result.second; // Сохранение дробной части в двоичном формате
     is_negative = num_str[0] == '-';
 }
 
+/**
+ * @brief Конструктор из числа double с указанием бит дробной части
+ * @param num Число для инициализации
+ * @param frac_bits Количество бит дробной части
+ */
 FixedPoint::FixedPoint(const double &num, int frac_bits) : fractional_bits(frac_bits) {
     auto binary_result = decimal_to_binary(std::to_string(num), fractional_bits);
 
-    integer = binary_result.first;     // Store the integer part in binary
-    fractional = binary_result.second; // Store the fractional part in binary
+    integer = binary_result.first;     
+    fractional = binary_result.second;
     is_negative = num < 0;
 }
 
-// Default copy constructor and destructor
+
+// Конструктор и деструктор копирования 
 FixedPoint::FixedPoint(const FixedPoint& other) = default;
 FixedPoint::~FixedPoint() = default;
 
-// Default assignment operator
+// Оператор присваивания 
 FixedPoint& FixedPoint::operator=(const FixedPoint& other) = default;
 
-// Overload the + operator for adding two FixedPoint numbers
+/**
+ * @brief Оператор сложения
+ * @param other Слагаемое
+ * @return Результат сложения
+ * @details Реализует сложение с учетом знаков чисел и переносов
+ */
 FixedPoint FixedPoint::operator+(const FixedPoint &other) const {
 
     Op_behavior behavior = helper(*this, other, '+');
 
-    // Create a result object with the maximum fractional bits between the two operands
+    
     FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
 
     switch (behavior) {
@@ -46,22 +66,22 @@ FixedPoint FixedPoint::operator+(const FixedPoint &other) const {
 
             auto sub_res = subtract_nums(a, b);
 
-            result.integer = sub_res.first;     // Assign the computed integer part to the result
-            result.fractional = sub_res.second; // Assign the computed fractional part to the result
+            result.integer = sub_res.first;     
+            result.fractional = sub_res.second; 
             result.is_negative = a.is_negative;
             break;
         }
         case Op_behavior::PLUS_SND: {
 
-            // Add fractional parts and handle carry
+            
             auto add_res = add_frac(fractional, other.fractional);
             result.fractional = add_res.first;
 
-            // Add integer parts and handle carry from fractional addition
+            
             add_res = add_int(integer, other.integer, add_res.second);
             result.integer = add_res.first;
 
-            // If there's still a carry, append it to the integer part
+            
             if (add_res.second) {
                 result.integer.push_back(1);
             }
@@ -83,24 +103,30 @@ FixedPoint FixedPoint::operator+(const FixedPoint &other) const {
     return result;
 }
 
-// Overload the - operator for subtracting two FixedPoint numbers
+
+/**
+ * @brief Оператор вычитания
+ * @param other Вычитаемое
+ * @return Результат вычитания
+ * @details Реализует вычитание с учетом знаков чисел и заемов
+ */
 FixedPoint FixedPoint::operator-(const FixedPoint &other) const {
 
     Op_behavior behavior = helper(*this, other, '-');
-    // Create a result object with the maximum fractional bits between the two operands
+    
     FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
 
     switch (behavior) {
         case Op_behavior::SUB_FST: {
-            // Add fractional parts and handle carry
+            
             auto add_res = add_frac(fractional, other.fractional);
             result.fractional = add_res.first;
 
-            // Add integer parts and handle carry from fractional addition
+            
             add_res = add_int(integer, other.integer, add_res.second);
             result.integer = add_res.first;
 
-            // If there's still a carry, append it to the integer part
+            
             if (add_res.second) {
                 result.integer.push_back(1);
             }
@@ -114,8 +140,8 @@ FixedPoint FixedPoint::operator-(const FixedPoint &other) const {
 
             auto sub_res = subtract_nums(a, b);
 
-            result.integer = sub_res.first;     // Assign the computed integer part to the result
-            result.fractional = sub_res.second; // Assign the computed fractional part to the result
+            result.integer = sub_res.first;     
+            result.fractional = sub_res.second;
             result.is_negative = (is_negative ? res_compare : !res_compare);
 
             break;
@@ -135,20 +161,25 @@ FixedPoint FixedPoint::operator-(const FixedPoint &other) const {
     return result;
 }
 
-// Overload the * operator for multiplying two FixedPoint numbers
+/**
+ * @brief Оператор умножения
+ * @param other Множитель
+ * @return Результат умножения
+ * @details Реализует побитовое умножение с учетом переносов
+ */
 FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
-    // Create a result object with sufficient fractional bits for multiplication
+    
     FixedPoint result("0.0", (fractional_bits / 32 + 1) * 32 + (other.fractional_bits / 32 +  1) * 32);
 
-    // Compute the sizes of the operands
+    
     uint32_t this_sz = integer.size() + fractional.size();
     uint32_t other_sz = other.integer.size() + other.fractional.size();
 
-    // Allocate space for intermediate multiplication results
+    
     uint32_t mid_mult_sz = (this_sz + other_sz) * 32 + 1;
     std::vector<uint32_t> mid_mult(mid_mult_sz);
 
-    // Perform bitwise multiplication
+    
     for (uint32_t this_i = 0; this_i < this_sz; this_i++) {
         for (uint32_t bit_this = 0; bit_this < 32; bit_this++) {
             for (uint32_t other_i = 0; other_i < other_sz; other_i++) {
@@ -174,7 +205,6 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
         }
     }
 
-    // Convert the intermediate multiplication result into integer and fractional parts
     std::vector<uint32_t> mult_int_result;
     std::vector<uint32_t> mult_frac_result;
     int bit_added = 0;
@@ -193,8 +223,8 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
         }
     }
 
-    result.integer = mult_int_result;     // Assign the computed integer part to the result
-    result.fractional = mult_frac_result; // Assign the computed fractional part to the result
+    result.integer = mult_int_result;     
+    result.fractional = mult_frac_result; 
     result.is_negative = is_negative ^ other.is_negative;
 
     while (result.fractional.size() > 1 && result.fractional.front() == 0) {
@@ -208,9 +238,15 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
     return result;
 }
 
-// Overload the / operator
+/**
+ * @brief Оператор деления
+ * @param other Делитель
+ * @return Результат деления
+ * @throw std::runtime_error при делении на ноль
+ * @details Реализует алгоритм деления с восстановлением остатка
+ */
 FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
-    // Create a result object with sufficient fractional bits for division
+    
     FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
 
     auto div_res = divide(*this, other);
@@ -238,7 +274,7 @@ FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
     return result;
 }
 
-// Overload comparison operators for two FixedPoint numbers
+
 bool FixedPoint::operator>(const FixedPoint &other) const {
     bool abs_compare = bigger_abs(*this, other);
     if (!is_negative && !other.is_negative) return abs_compare;
@@ -316,7 +352,12 @@ FixedPoint& FixedPoint::operator/=(const FixedPoint &other) {
     return *this;
 }
 
-// Reduces the precision of the fractional part by removing bits and updating the fractional representation
+
+/**
+ * @brief Устанавливает точность дробной части
+ * @param precision Новое количество бит дробной части
+ * @details Удаляет младшие биты дробной части для уменьшения точности
+ */
 void FixedPoint::set_precision(size_t precision) {
     if (precision > fractional_bits) {
         std::cout << "You can just set less value" << std::endl;
@@ -419,6 +460,10 @@ std::string FixedPoint::to_string(int len) const {
     return before_res + "." + after_res;
 }
 
+/**
+ * @brief Проверяет, является ли число нулем
+ * @return true если число равно нулю
+ */
 bool FixedPoint::is_zero() const {
     if (integer.size() == 0 && fractional.size() == 0) return true;
     for (uint32_t val : integer) {
@@ -447,13 +492,19 @@ Op_behavior FixedPoint::helper(const FixedPoint &a, const FixedPoint &b, char op
     throw std::invalid_argument("Invalid argument in FixedPoint::helper");
 }
 
-// Function to print bits of a uint32_t value
+
 void FixedPoint::printBits(uint32_t value) const {
     for (int i = 31; i >= 0; --i) {
         std::cout << ((value >> i) & 1);
     }
 }
 
+/**
+ * @brief Сравнивает абсолютные значения двух чисел
+ * @param a Первое число
+ * @param b Второе число
+ * @return true если |a| > |b|
+ */
 bool FixedPoint::bigger_abs(const FixedPoint &a, const FixedPoint &b) const {
     for (int i = std::max(a.integer.size(), b.integer.size()) - 1; i >= 0; i--) {
         uint32_t val_a = ((uint32_t) i) < a.integer.size() ? a.integer[i] : 0;
@@ -481,6 +532,12 @@ bool FixedPoint::bigger_abs(const FixedPoint &a, const FixedPoint &b) const {
     return true;
 }
 
+/**
+ * @brief Сравнивает абсолютные значения двух чисел
+ * @param a Первое число
+ * @param b Второе число
+ * @return true если |a| < |b|
+ */
 bool FixedPoint::less_abs(const FixedPoint &a, const FixedPoint &b) const {
     for (int i = std::max(a.integer.size(), b.integer.size()) - 1; i >= 0; i--) {
         uint32_t val_a = ((uint32_t) i) < a.integer.size() ? a.integer[i] : 0;
@@ -507,7 +564,13 @@ bool FixedPoint::less_abs(const FixedPoint &a, const FixedPoint &b) const {
     return true;
 }
 
-// Function to add fractional parts of two numbers
+/**
+ * @brief Выполняет сложение дробных частей
+ * @param a Первая дробная часть
+ * @param b Вторая дробная часть
+ * @param carry Флаг переноса
+ * @return Пару: результат и новый флаг переноса
+ */
 std::pair<std::vector<uint32_t>, bool> FixedPoint::add_frac(const std::vector<uint32_t> &a,
                                                             const std::vector<uint32_t> &b,
                                                             uint32_t carry) const {
@@ -541,7 +604,13 @@ std::pair<std::vector<uint32_t>, bool> FixedPoint::add_frac(const std::vector<ui
     return std::make_pair(result, carry);
 }
 
-// Function to add integer parts of two numbers
+/**
+ * @brief Выполняет сложение целых частей
+ * @param a Первая целая часть
+ * @param b Вторая целая часть
+ * @param carry Флаг переноса
+ * @return Пару: результат и новый флаг переноса
+ */
 std::pair<std::vector<uint32_t>, bool> FixedPoint::add_int(const std::vector<uint32_t> &a,
                                                            const std::vector<uint32_t> &b,
                                                            uint32_t carry) const {
@@ -582,23 +651,23 @@ FixedPoint::subtract_nums(const FixedPoint &a, const FixedPoint &b) const {
     size_t b_int_sz = b.integer.size();
     size_t b_frac_sz = b.fractional.size();
 
-    // Determine the maximum size of the combined integer and fractional parts
+
     size_t max_sz = std::max(a_int_sz + a_frac_sz, b_int_sz + b_frac_sz);
     size_t max_frac_sz = std::max(a_frac_sz, b_frac_sz);
 
-    uint32_t borrow = 0; // Borrow flag for subtraction
+    uint32_t borrow = 0; 
 
     size_t a_i = 0, b_i = 0;
 
-    // Perform subtraction bit by bit for both fractional and integer parts
+    
     while (a_i < max_sz && b_i < max_sz) {
         if (a_i < max_frac_sz && b_i < max_frac_sz) {
-            result_frac.push_back(0); // Initialize fractional result
+            result_frac.push_back(0); 
         } else {
-            result_int.push_back(0); // Initialize integer result
+            result_int.push_back(0); 
         }
 
-        // Handle cases where one operand has fewer fractional bits than the other
+       
         if (b_i < max_frac_sz - a_frac_sz) {
             borrow = subtract(result_frac.back(), 0, b.fractional[b_i++], borrow);
             continue;
@@ -609,13 +678,13 @@ FixedPoint::subtract_nums(const FixedPoint &a, const FixedPoint &b) const {
             continue;
         }
 
-        // Subtract corresponding fractional bits
+      
         if (a_i < max_frac_sz && b_i < max_frac_sz) {
             borrow = subtract(result_frac.back(), a.fractional[a_i++], b.fractional[b_i++], borrow);
             continue;
         }
 
-        // Subtract corresponding integer bits
+        
         uint32_t val_a = (a_i - a_frac_sz < a_int_sz) ? a.integer[a_i++ - a_frac_sz] : 0;
         uint32_t val_b = (b_i - b_frac_sz < b_int_sz) ? b.integer[b_i++ - b_frac_sz] : 0;
         borrow = subtract(result_int.back(), val_a, val_b, borrow);
@@ -624,7 +693,7 @@ FixedPoint::subtract_nums(const FixedPoint &a, const FixedPoint &b) const {
     return std::make_pair(result_int, result_frac);
 }
 
-// Function to perform subtraction of two 32-bit words with borrow
+
 int FixedPoint::subtract(uint32_t &res, uint32_t val_a, uint32_t val_b, uint32_t borrow) const {
     uint32_t int_res = val_a ^ val_b;
     for (size_t bit_i = 0; bit_i < 32; bit_i++) {
@@ -632,13 +701,13 @@ int FixedPoint::subtract(uint32_t &res, uint32_t val_a, uint32_t val_b, uint32_t
         case 0:
             res = res | (int_res & (1 << bit_i));
             if ((val_a & (1 << bit_i)) == 0 && (val_b & (1 << bit_i)) != 0) {
-                borrow = 1; // Set borrow if a bit needs to be borrowed
+                borrow = 1; 
             }
             break;
         case 1:
             res = res | ((~int_res) & (1 << bit_i));
             if ((val_a & (1 << bit_i)) != 0 && (val_b & (1 << bit_i)) == 0) {
-                borrow = 0; // Clear borrow if the borrow is resolved
+                borrow = 0; 
             }
             break;
         }
@@ -647,14 +716,14 @@ int FixedPoint::subtract(uint32_t &res, uint32_t val_a, uint32_t val_b, uint32_t
 }
 
 std::vector<uint32_t> FixedPoint::subtract_vec(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const {
-    uint32_t borrow = 0; // Borrow flag for subtraction
+    uint32_t borrow = 0; 
 
     uint32_t a_i = 0, b_i = 0;
     uint32_t max_sz = std::max(a.size(), b.size());
 
     std::vector<uint32_t> result;
 
-    // Perform subtraction bit by bit for both fractional and integer parts
+  
     while (a_i < max_sz && b_i < max_sz) {
         result.push_back(0);
 
@@ -749,10 +818,14 @@ void FixedPoint::add_bit_div(std::vector<uint32_t> &vec, uint32_t bit_added, boo
     vec[0] |= (is_one ? 1 : 0);
 }
 
-// Function to convert an integer part from decimal to binary
+/**
+ * @brief Преобразует целую часть из десятичной строки в двоичную
+ * @param num_str Десятичная строка
+ * @return Двоичное представление целой части
+ */
 std::vector<uint32_t> FixedPoint::int_part_to_bin(const std::string &num_str) const {
-    std::string cur_num_str = num_str;  // Copy of the input string
-    std::vector<uint32_t> binary_result; // To store the binary result
+    std::string cur_num_str = num_str;  
+    std::vector<uint32_t> binary_result; 
 
     if (cur_num_str == "0") {
         binary_result.push_back(0);
@@ -761,7 +834,7 @@ std::vector<uint32_t> FixedPoint::int_part_to_bin(const std::string &num_str) co
 
     int bit_added = 0;
 
-    // Repeatedly divide the number by 2 to extract binary digits
+  
     while (cur_num_str != "0") {
         int remainder = 0;
         std::string result;
@@ -774,7 +847,7 @@ std::vector<uint32_t> FixedPoint::int_part_to_bin(const std::string &num_str) co
             result += std::to_string(quotient);
         }
 
-        // Remove leading zeros from the result
+    
         result.erase(0, result.find_first_not_of('0'));
         if (result.empty()) {
             result = "0";
@@ -791,7 +864,11 @@ std::vector<uint32_t> FixedPoint::int_part_to_bin(const std::string &num_str) co
     return binary_result;
 }
 
-// Function to multiply a decimal string by 2
+/**
+ * @brief Умножает десятичную строку на 2
+ * @param num_str Входная строка
+ * @return Результат умножения в виде строки
+ */
 std::string FixedPoint::mult_by_two(const std::string &num_str) const {
     std::string result = "";
     int carry = 0;
@@ -809,14 +886,19 @@ std::string FixedPoint::mult_by_two(const std::string &num_str) const {
     return result;
 }
 
-// Function to convert a fractional part from decimal to binary
+/**
+ * @brief Преобразует дробную часть из десятичной строки в двоичную
+ * @param frac_str Дробная часть в виде строки
+ * @param frac_bits Требуемое количество бит
+ * @return Двоичное представление дробной части
+ */
 std::vector<uint32_t> FixedPoint::frac_to_binary(const std::string &frac_str, int frac_bits) const {
     std::vector<uint32_t> binary;
     std::string frac_part = frac_str;
     uint32_t frac_part_size = frac_part.size();
 
     for (int i = 0, bit_added = 0; i < frac_bits && !frac_part.empty(); ++i, bit_added = (bit_added + 1) % 32) {
-        // Multiply the fractional part by 2
+     
         std::string multiplied = mult_by_two(frac_part);
 
         if (bit_added == 0) binary.insert(binary.begin(), 0);
@@ -839,15 +921,20 @@ std::vector<uint32_t> FixedPoint::frac_to_binary(const std::string &frac_str, in
     return binary;
 }
 
-// Function to convert a decimal string to binary representation
+/**
+ * @brief Преобразует десятичную строку в двоичное представление
+ * @param num_str Входная строка
+ * @param frac_bits Количество бит дробной части
+ * @return Пару: целая и дробная части в двоичном виде
+ */
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
 FixedPoint::decimal_to_binary(const std::string& num_str, int frac_bits) const {
     uint32_t is_sign = (num_str[0] == '-' || num_str[0] == '+' ? 1 : 0);
 
-    // Find the position of the decimal point
+   
     size_t dot_pos = num_str.find('.');
 
-    // If no decimal point exists, treat it as an integer
+  
     if (dot_pos == std::string::npos) {
         std::vector<uint32_t> binary_integer = int_part_to_bin(num_str.substr(is_sign));
         std::vector<uint32_t> binary_fraction;
@@ -858,18 +945,18 @@ FixedPoint::decimal_to_binary(const std::string& num_str, int frac_bits) const {
         return std::make_pair(binary_integer, binary_fraction);
     }
 
-    // Extract the integer and fractional parts
+    // Извлечение целой и дробной части
     std::string integer_part_str = num_str.substr(is_sign, dot_pos - is_sign);
 
     std::string frac_partStr = num_str.substr(dot_pos + 1);
 
-    // Convert the integer part to binary
+    // Преобразование целой части в двоичную
     std::vector<uint32_t> binary_integer = int_part_to_bin(integer_part_str);
 
-    // Convert the fractional part to binary
+    // Преобразование дробной части в двоичную
     std::vector<uint32_t> binary_fraction = frac_to_binary(frac_partStr, frac_bits);
 
-    // Combine the results
+    // Объединение полученных результатов
     return std::make_pair(binary_integer, binary_fraction);
 }
 
@@ -910,7 +997,7 @@ std::pair<FixedPoint, FixedPoint> FixedPoint::divide_with_remainder(const FixedP
     return {quotient, remainder};
 }
 
-// Побитовый XOR (игнорирует знак, работает с абсолютными значениями)
+// Побитовый XOR 
 FixedPoint FixedPoint::operator^(const FixedPoint &other) const {
     // Приводим числа к одинаковому количеству дробных битов
     int max_frac_bits = std::max(fractional_bits, other.fractional_bits);
@@ -945,9 +1032,9 @@ FixedPoint FixedPoint::operator^(const FixedPoint &other) const {
 }
 
 
-// User-defined literal operator for creating FixedPoint objects
+// Определяемый пользователем оператор литерала для создания объектов с фиксированной точкой
 FixedPoint operator""_long(long double number) {
-    return FixedPoint(std::to_string(number), 64); // Replace this with actual logic if needed
+    return FixedPoint(std::to_string(number), 64); 
 
 }
 

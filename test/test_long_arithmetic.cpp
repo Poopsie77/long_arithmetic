@@ -5,19 +5,25 @@
 #include "../include/long_arithmetic.hpp"
 #include "../include/pi_calculation.hpp"
 
-// Test class for all operation tests
+
 class FixedPointTest: public ::testing::Test {
 protected:
     void SetUp() override {}
 };
 
-// Тест для конструктора
+/**
+ * @test Тест конструктора FixedPoint
+ * @brief Проверка корректности создания объекта из строки
+ */
 TEST_F(FixedPointTest, Constructor) {
     FixedPoint num("123.456");
     EXPECT_EQ(num.to_string(3), "123.456");
 }
 
-// Тест для сложения
+/**
+ * @test Тест операции сложения
+ * @brief Проверка корректности работы оператора +
+ */
 TEST_F(FixedPointTest, Addition) {
     FixedPoint num1("10.5");
     FixedPoint num2("20.25");
@@ -25,7 +31,10 @@ TEST_F(FixedPointTest, Addition) {
     EXPECT_EQ(result.to_string(), "30.75");
 }
 
-// Тест для вычитания
+/**
+ * @test Тест операции вычитания
+ * @brief Проверка корректности работы оператора -
+ */
 TEST_F(FixedPointTest, Subtraction) {
     FixedPoint num1("30.75");
     FixedPoint num2("0");
@@ -33,7 +42,10 @@ TEST_F(FixedPointTest, Subtraction) {
     EXPECT_EQ(result.to_string(), "30.75");
 }
 
-// Тест для умножения
+/**
+ * @test Тест операции умножения
+ * @brief Проверка корректности работы оператора *
+ */
 TEST_F(FixedPointTest, Multiplication) {
     FixedPoint num1("10.5");
     FixedPoint num2("2.0");
@@ -41,7 +53,10 @@ TEST_F(FixedPointTest, Multiplication) {
     EXPECT_EQ(result.to_string(), "21.0");
 }
 
-// Тест для деления
+/**
+ * @test Тест операции деления
+ * @brief Проверка корректности работы оператора /
+ */
 TEST_F(FixedPointTest, Division) {
     FixedPoint num1("21.0", 2);
     FixedPoint num2("2.0", 2);
@@ -49,7 +64,10 @@ TEST_F(FixedPointTest, Division) {
     EXPECT_EQ(result.to_string(), "10.5");
 }
 
-// Тест для сравнения
+/**
+ * @test Тест операций сравнения
+ * @brief Проверка корректности работы операторов сравнения
+ */
 TEST_F(FixedPointTest, Comparison) {
     FixedPoint num1("10.5");
     FixedPoint num2("20.25");
@@ -58,10 +76,13 @@ TEST_F(FixedPointTest, Comparison) {
     EXPECT_TRUE(num1 != num2);
 }
 
-// Сдвиги
-//Корректность переноса битов между целой и дробной частями
-//Обработку отрицательных чисел (если поддерживается)
-//Краевые случаи (сдвиг на 0 бит, сдвиг больше размера числа)
+/**
+ * @test Тест битового сдвига влево
+ * @brief Проверка корректности работы оператора <<
+ * @details Проверяет:
+ * - Корректность переноса битов
+ * - Обработку граничных случаев
+ */
 TEST(FixedPointTests, LeftShift) {
     FixedPoint a("3.5");  
     FixedPoint b = a << 1;
@@ -72,6 +93,13 @@ TEST(FixedPointTests, LeftShift) {
     EXPECT_EQ(d.to_string(), "2.0");  
 }
 
+/**
+ * @test Тест битового сдвига вправо
+ * @brief Проверка корректности работы оператора >>
+ * @details Проверяет:
+ * - Корректность переноса битов
+ * - Обработку дробных чисел
+ */
 TEST(FixedPointTests, RightShift) {
     FixedPoint a("6.0");  
     FixedPoint b = a >> 1;
@@ -82,10 +110,13 @@ TEST(FixedPointTests, RightShift) {
     EXPECT_EQ(d.to_string(), "0.25");  
 }
 
-//деление с остатком
-//Деление нацело и с остатком.
-//деление отрицательных чисел.
-//Обработку деления на ноль
+/**
+ * @test Тест деления с остатком
+ * @brief Проверка корректности divide_with_remainder()
+ * @details Проверяет:
+ * - Деление нацело и с остатком
+ * - Обработку отрицательных чисел
+ */
 TEST(FixedPointTests, DivideWithRemainder) {
     FixedPoint a("10.0"), b("3.0");
     auto [quotient, remainder] = a.divide_with_remainder(b);
@@ -98,14 +129,23 @@ TEST(FixedPointTests, DivideWithRemainder) {
     EXPECT_EQ(r.to_string(), "-1.0");          
 }
 
+/**
+ * @test Тест деления на ноль
+ * @brief Проверка обработки ошибки деления на ноль
+ */
 TEST(FixedPointTests, DivideByZero) {
     FixedPoint a("5.0"), b("0.0");
     EXPECT_THROW(a.divide_with_remainder(b), std::runtime_error);
 }
 
-//Корректность работы с разными длинами чисел.
-//Игнорирование знака (если так задумано).
-//Случаи с нулями.
+
+/**
+ * @test Тест побитового XOR
+ * @brief Проверка корректности работы оператора ^
+ * @details Проверяет:
+ * - Корректность работы с разными длинами чисел
+ * - Обработку дробных частей
+ */
 TEST(FixedPointTests, BitwiseXOR) {
     FixedPoint a("5.0");    
     FixedPoint b("3.0");    
@@ -118,7 +158,13 @@ TEST(FixedPointTests, BitwiseXOR) {
     EXPECT_EQ(f.to_string(), "0.75");  
 }
 
-// Тест для числа Pi
+/**
+ * @test Тест расчета числа π
+ * @brief Проверка корректности и производительности
+ * @details Проверяет:
+ * - Корректность вычисления π
+ * - Время выполнения (должно быть < 1 сек)
+ */
 TEST_F(FixedPointTest, PiCalculation) {
     auto start = std::chrono::high_resolution_clock::now();
     FixedPoint pi = get_pi();
